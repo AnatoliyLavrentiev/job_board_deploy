@@ -1,0 +1,122 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  USER
+  RECRUITER
+  ADMIN
+}
+
+enum JobType {
+  CDI
+  CDD
+  Stage
+  Freelance
+}
+
+enum ApplicationStatus {
+  EN_ATTENTE
+  ACCEPTEE
+  REFUSEE
+}
+
+enum JobStatus {
+  PUBLISHED
+  ARCHIVED
+}
+
+
+model Company {
+  id          String   @id @default(cuid())
+  compName    String
+  place       String
+  information String?  @db.Text
+  website     String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relations
+  users       User[]   // Recruteurs de l'entreprise
+  jobs        Job[]    // Offres d'emploi de l'entreprise
+  
+  @@map("companies")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  firstname String
+  lastname  String
+  email     String   @unique
+  phone     String?
+  password  String
+  role      Role     @default(USER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relation optionnelle avec Company (pour les recruteurs)
+  companyId String?
+  company   Company? @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  
+  // Relations
+  jobApplications JobApplication[] // Candidatures de l'utilisateur
+  createdJobs     Job[]           // Offres créées par l'utilisateur (recruteur/admin)
+  
+  @@map("users")
+}
+
+model Job {
+  id               String   @id @default(cuid())
+  title            String
+  type             JobType
+  shortDescription String   @db.Text
+  description      String   @db.Text
+  responsibilities String?  @db.Text
+  qualifications   String?  @db.Text
+  salary           Float
+  location         String
+  categories       String[] @default([])
+  status           JobStatus @default(PUBLISHED) 
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  // Relations
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  createdBy String
+  creator   User   @relation(fields: [createdBy], references: [id], onDelete: Cascade)
+
+  jobApplications JobApplication[]
+
+  @@map("jobs")
+}
+
+model JobApplication {
+  id             String   @id @default(cuid())
+  message        String   @db.Text
+  applicantName  String
+  applicantEmail String
+  applicantPhone String?
+  status         ApplicationStatus @default(EN_ATTENTE)
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Relations
+  jobId String
+  job   Job    @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@map("job_applications")
+}
